@@ -7,9 +7,9 @@ const FROG_SIZE = 32;
 const ATTACK_DURATION = 15;
 const TONGUE_LENGTH = 60;
 
-// Physics constants for dynamic movement
-const PLAYER_ACCEL = 0.8;
-const PLAYER_FRICTION = 0.9;
+// Physics constants for dynamic movement (now adjusted for deltaTime)
+const PLAYER_ACCEL = 10; // Base acceleration per second (further reduced to 10)
+const PLAYER_FRICTION = 0.95; // Higher friction for slippery feel
 const ENEMY_FRICTION = 0.85;
 const KNOCKBACK_FORCE = 15;
 
@@ -30,7 +30,7 @@ const FROG_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
 const frogImage = new Image();
 frogImage.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(FROG_SVG);
 
-type EnemyBehavior = 'chase' | 'stop-and-go' | 'erratic' | 'wander' | 'dash';
+type EnemyBehavior = 'chase' | 'stop-and-go' | 'erratic' | 'wander' | 'dash' | 'lunge' | 'orbit';
 type EnemyShape = 'square' | 'circle' | 'triangle' | 'pentagon' | 'star';
 
 interface EnemyType {
@@ -39,17 +39,17 @@ interface EnemyType {
 }
 
 const ENEMY_TYPES: EnemyType[] = [
-  { name: 'Токсичные тимейты', hp: 30, speed: 0.5, color: '#8b5cf6', width: 32, height: 32, behavior: 'chase', damage: 0.5, shape: 'circle' },
-  { name: 'Боль в спине', hp: 50, speed: 0.25, color: '#ef4444', width: 40, height: 40, behavior: 'chase', damage: 1.0, shape: 'triangle' },
-  { name: 'Депрессия', hp: 80, speed: 0.15, color: '#3b82f6', width: 48, height: 48, behavior: 'chase', damage: 0.2, shape: 'square' },
-  { name: 'Голод', hp: 20, speed: 0.6, color: '#f59e0b', width: 24, height: 24, behavior: 'chase', damage: 0.8, shape: 'star' },
-  { name: 'Плохая погода', hp: 40, speed: 0.4, color: '#6b7280', width: 36, height: 36, behavior: 'chase', damage: 0.5, shape: 'pentagon' },
-  { name: 'Душка', hp: 60, speed: 0.35, color: '#10b981', width: 32, height: 32, behavior: 'chase', damage: 0.5, shape: 'circle' },
-  { name: 'Нехватка сна', hp: 25, speed: 0.7, color: '#6366f1', width: 28, height: 28, behavior: 'chase', damage: 0.5, shape: 'star' },
-  { name: 'Прокрастинация', hp: 45, speed: 1.2, color: '#d946ef', width: 34, height: 34, behavior: 'stop-and-go', damage: 0.5, shape: 'triangle' },
-  { name: 'Тревога', hp: 35, speed: 0.7, color: '#f43f5e', width: 30, height: 30, behavior: 'erratic', damage: 0.7, shape: 'pentagon' },
-  { name: 'Забывчивость', hp: 25, speed: 0.5, color: '#94a3b8', width: 28, height: 28, behavior: 'wander', damage: 0.3, shape: 'circle' },
-  { name: 'Шумные соседи', hp: 55, speed: 1.3, color: '#eab308', width: 38, height: 38, behavior: 'dash', damage: 1.5, shape: 'star' },
+  { name: 'Токсичные тимейты', hp: 30, speed: 0.78, color: '#8b5cf6', width: 32, height: 32, behavior: 'chase', damage: 0.5, shape: 'circle' },
+  { name: 'Боль в спине', hp: 50, speed: 0.42, color: '#ef4444', width: 40, height: 40, behavior: 'lunge', damage: 1.0, shape: 'triangle' },
+  { name: 'Депрессия', hp: 80, speed: 0.24, color: '#3b82f6', width: 48, height: 48, behavior: 'chase', damage: 0.2, shape: 'square' },
+  { name: 'Голод', hp: 20, speed: 0.96, color: '#f59e0b', width: 24, height: 24, behavior: 'chase', damage: 0.8, shape: 'star' },
+  { name: 'Плохая погода', hp: 40, speed: 0.66, color: '#6b7280', width: 36, height: 36, behavior: 'chase', damage: 0.5, shape: 'pentagon' },
+  { name: 'Душка', hp: 60, speed: 0.54, color: '#10b981', width: 32, height: 32, behavior: 'chase', damage: 0.5, shape: 'circle' },
+  { name: 'Нехватка сна', hp: 25, speed: 1.14, color: '#6366f1', width: 28, height: 28, behavior: 'chase', damage: 0.5, shape: 'star' },
+  { name: 'Прокрастинация', hp: 45, speed: 1.8, color: '#d946ef', width: 34, height: 34, behavior: 'stop-and-go', damage: 0.5, shape: 'triangle' },
+  { name: 'Тревога', hp: 35, speed: 1.08, color: '#f43f5e', width: 30, height: 30, behavior: 'orbit', damage: 0.7, shape: 'pentagon' },
+  { name: 'Забывчивость', hp: 25, speed: 0.78, color: '#94a3b8', width: 28, height: 28, behavior: 'wander', damage: 0.3, shape: 'circle' },
+  { name: 'Шумные соседи', hp: 55, speed: 2.0, color: '#eab308', width: 38, height: 38, behavior: 'dash', damage: 1.5, shape: 'star' },
 ];
 
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
@@ -186,7 +186,7 @@ function NamingScreen({ onComplete }: { onComplete: (name: string) => void }) {
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full max-w-2xl px-4 text-center">
-      <p className="text-xl md:text-2xl mb-12 h-32 leading-relaxed">{displayedMessage}</p>
+      <p className="text-xl md:text-2xl mb-24 h-48 leading-relaxed flex items-center justify-center">{displayedMessage}</p>
 
       {charIndex >= message.length && (
         <form onSubmit={handleSubmit} className="flex flex-col items-center">
@@ -201,7 +201,7 @@ function NamingScreen({ onComplete }: { onComplete: (name: string) => void }) {
               placeholder="Имя..."
             />
           ) : (
-            <div className="text-3xl uppercase tracking-widest text-yellow-400 animate-bounce mb-8">
+            <div className="text-3xl uppercase tracking-widest text-yellow-400 animate-bounce mb-12 mt-4">
               АРТЕМЯУС
             </div>
           )}
@@ -214,9 +214,10 @@ function NamingScreen({ onComplete }: { onComplete: (name: string) => void }) {
   );
 }
 
-function GameScreen({ frogName }: { frogName: string }) {
+function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
 
   const getInitialState = (prevPlayer?: GameState['player'], level: number = 1): GameState => {
     const mode = level === 1 ? 'ACTION' : 'TYPING';
@@ -302,7 +303,12 @@ function GameScreen({ frogName }: { frogName: string }) {
         const ts = s.typingState!;
         if (ts.isFinished) {
           if (e.code === 'Enter' || e.code === 'Space') {
-            state.current = getInitialState(s.player, s.level + 1);
+            if (s.level === 3) {
+              s.isVictory = true;
+              setTimeout(onVictory, 2000); // Show birthday screen after a small delay
+            } else {
+              state.current = getInitialState(s.player, s.level + 1);
+            }
             return;
           }
         } else if (ts.currentIndex < ts.code.length) {
@@ -339,10 +345,14 @@ function GameScreen({ frogName }: { frogName: string }) {
     if (!ctx) return;
 
     ctx.imageSmoothingEnabled = false;
+    lastTimeRef.current = performance.now();
 
-    const update = () => {
+    const update = (dt: number) => {
       const s = state.current;
       const p = s.player;
+
+      // dt is in seconds, e.g., 0.016 for 60fps
+      const speedScale = dt * 60; // Scale factors originally designed for 60fps
 
       // Check Restart / Next Level
       if (s.isGameOver && s.keys['KeyR']) {
@@ -359,7 +369,7 @@ function GameScreen({ frogName }: { frogName: string }) {
       if (s.mode === 'TYPING') {
         const ts = s.typingState!;
         if (!ts.isFinished) {
-          ts.fireX += ts.fireSpeed / 60; // Assuming 60fps
+          ts.fireX += ts.fireSpeed * dt;
         }
 
         const blockWidth = 60;
@@ -387,16 +397,16 @@ function GameScreen({ frogName }: { frogName: string }) {
         // --- Player Physics & Movement ---
         let moved = false;
         if (!p.isAttacking) {
-          if (s.keys['ArrowUp'] || s.keys['KeyW']) { p.vy -= PLAYER_ACCEL; p.dir = 'UP'; moved = true; }
-          if (s.keys['ArrowDown'] || s.keys['KeyS']) { p.vy += PLAYER_ACCEL; p.dir = 'DOWN'; moved = true; }
-          if (s.keys['ArrowLeft'] || s.keys['KeyA']) { p.vx -= PLAYER_ACCEL; p.dir = 'LEFT'; moved = true; }
-          if (s.keys['ArrowRight'] || s.keys['KeyD']) { p.vx += PLAYER_ACCEL; p.dir = 'RIGHT'; moved = true; }
+          if (s.keys['ArrowUp'] || s.keys['KeyW']) { p.vy -= PLAYER_ACCEL * dt; p.dir = 'UP'; moved = true; }
+          if (s.keys['ArrowDown'] || s.keys['KeyS']) { p.vy += PLAYER_ACCEL * dt; p.dir = 'DOWN'; moved = true; }
+          if (s.keys['ArrowLeft'] || s.keys['KeyA']) { p.vx -= PLAYER_ACCEL * dt; p.dir = 'LEFT'; moved = true; }
+          if (s.keys['ArrowRight'] || s.keys['KeyD']) { p.vx += PLAYER_ACCEL * dt; p.dir = 'RIGHT'; moved = true; }
         }
 
-        p.vx *= PLAYER_FRICTION;
-        p.vy *= PLAYER_FRICTION;
-        p.x += p.vx;
-        p.y += p.vy;
+        p.vx *= Math.pow(PLAYER_FRICTION, speedScale);
+        p.vy *= Math.pow(PLAYER_FRICTION, speedScale);
+        p.x += p.vx * speedScale;
+        p.y += p.vy * speedScale;
 
         // Bounds checking
         const padding = 20;
@@ -414,7 +424,7 @@ function GameScreen({ frogName }: { frogName: string }) {
 
         // --- Spawning Logic ---
         if (s.hasMoved && s.availableEnemies.length > 0) {
-          s.spawnTimer--;
+          s.spawnTimer -= speedScale;
           if (s.spawnTimer <= 0) {
             const idx = Math.floor(Math.random() * s.availableEnemies.length);
             const type = s.availableEnemies[idx];
@@ -451,14 +461,15 @@ function GameScreen({ frogName }: { frogName: string }) {
 
         if (attackKey && !p.isAttacking) {
           p.isCharging = true;
-          p.chargeLevel = Math.min(1, p.chargeLevel + 0.05); // Takes 20 frames to fully charge
+          // Reduced charge level to take ~2.5 seconds (roughly 0.0065 per frame at 60fps)
+          p.chargeLevel = Math.min(1, p.chargeLevel + 0.0065 * speedScale);
         } else if (!attackKey && p.isCharging) {
           p.isCharging = false;
           p.isAttacking = true;
           p.attackTimer = ATTACK_DURATION;
 
           const MIN_TONGUE_LENGTH = 15;
-          const MAX_TONGUE_LENGTH = 180;
+          const MAX_TONGUE_LENGTH = 120; // Reduced from 180 to 120
           p.currentAttackLength = MIN_TONGUE_LENGTH + (MAX_TONGUE_LENGTH - MIN_TONGUE_LENGTH) * p.chargeLevel;
           const isFullyCharged = p.chargeLevel >= 0.95;
           p.chargeLevel = 0;
@@ -517,31 +528,33 @@ function GameScreen({ frogName }: { frogName: string }) {
         s.enemies.forEach(enemy => {
           if (enemy.dead) return;
 
-          if (enemy.hitTimer > 0) enemy.hitTimer--;
+          if (enemy.hitTimer > 0) enemy.hitTimer -= speedScale;
 
           // Move towards player if not heavily knocked back
           if (enemy.hitTimer <= 10) {
-            enemy.stateTimer++;
+            enemy.stateTimer += speedScale;
             const dx = p.x + p.width / 2 - (enemy.x + enemy.width / 2);
             const dy = p.y + p.height / 2 - (enemy.y + enemy.height / 2);
             const dist = Math.hypot(dx, dy);
 
+            const enemyAccel = enemy.speed * speedScale * 0.3;
+
             switch (enemy.behavior) {
               case 'chase':
                 if (dist > 0) {
-                  enemy.vx += (dx / dist) * enemy.speed * 0.3;
-                  enemy.vy += (dy / dist) * enemy.speed * 0.3;
+                  enemy.vx += (dx / dist) * enemyAccel;
+                  enemy.vy += (dy / dist) * enemyAccel;
                 }
                 break;
               case 'stop-and-go':
-                if (enemy.stateTimer % 120 < 60) {
+                if (Math.floor(enemy.stateTimer) % 120 < 60) {
                   if (dist > 0) {
-                    enemy.vx += (dx / dist) * enemy.speed * 0.4;
-                    enemy.vy += (dy / dist) * enemy.speed * 0.4;
+                    enemy.vx += (dx / dist) * enemyAccel * 1.33;
+                    enemy.vy += (dy / dist) * enemyAccel * 1.33;
                   }
                 } else {
-                  enemy.vx *= 0.8;
-                  enemy.vy *= 0.8;
+                  enemy.vx *= Math.pow(0.8, speedScale);
+                  enemy.vy *= Math.pow(0.8, speedScale);
                 }
                 break;
               case 'erratic':
@@ -549,12 +562,12 @@ function GameScreen({ frogName }: { frogName: string }) {
                   const perpX = -dy / dist;
                   const perpY = dx / dist;
                   const jitter = Math.sin(enemy.stateTimer * 0.5) * 2;
-                  enemy.vx += ((dx / dist) + perpX * jitter) * enemy.speed * 0.2;
-                  enemy.vy += ((dy / dist) + perpY * jitter) * enemy.speed * 0.2;
+                  enemy.vx += ((dx / dist) + perpX * jitter) * enemyAccel * 0.66;
+                  enemy.vy += ((dy / dist) + perpY * jitter) * enemyAccel * 0.66;
                 }
                 break;
               case 'wander':
-                if (enemy.stateTimer % 90 === 0 || enemy.targetX === undefined) {
+                if (Math.floor(enemy.stateTimer) % 90 === 0 || enemy.targetX === undefined) {
                   if (Math.random() > 0.5) {
                     enemy.targetX = p.x;
                     enemy.targetY = p.y;
@@ -567,33 +580,67 @@ function GameScreen({ frogName }: { frogName: string }) {
                 const ty = enemy.targetY! - enemy.y;
                 const tDist = Math.hypot(tx, ty);
                 if (tDist > 0) {
-                  enemy.vx += (tx / tDist) * enemy.speed * 0.3;
-                  enemy.vy += (ty / tDist) * enemy.speed * 0.3;
+                  enemy.vx += (tx / tDist) * enemyAccel;
+                  enemy.vy += (ty / tDist) * enemyAccel;
                 }
                 break;
               case 'dash':
-                if (enemy.stateTimer % 100 < 70) {
+                if (Math.floor(enemy.stateTimer) % 100 < 70) {
                   if (dist > 0) {
-                    enemy.vx += (dx / dist) * enemy.speed * 0.1;
-                    enemy.vy += (dy / dist) * enemy.speed * 0.1;
+                    enemy.vx += (dx / dist) * enemyAccel * 0.33;
+                    enemy.vy += (dy / dist) * enemyAccel * 0.33;
                   }
-                } else if (enemy.stateTimer % 100 === 70) {
+                } else if (Math.floor(enemy.stateTimer) % 100 === 70) {
                   if (dist > 0) {
                     enemy.targetX = (dx / dist) * enemy.speed * 3;
                     enemy.targetY = (dy / dist) * enemy.speed * 3;
                   }
                 } else {
-                  enemy.vx = enemy.targetX || 0;
-                  enemy.vy = enemy.targetY || 0;
+                  enemy.vx = (enemy.targetX || 0) * speedScale;
+                  enemy.vy = (enemy.targetY || 0) * speedScale;
+                }
+                break;
+              case 'lunge':
+                // Cycle: 60 frames wait (shakes), 30 frames dash
+                const lungeCycle = Math.floor(enemy.stateTimer) % 90;
+                if (lungeCycle < 60) {
+                  // Shake effect
+                  enemy.x += (Math.random() - 0.5) * 2;
+                  enemy.y += (Math.random() - 0.5) * 2;
+                  enemy.vx *= 0.5;
+                  enemy.vy *= 0.5;
+                  // Set dash target just before lunging
+                  if (lungeCycle === 59) {
+                    enemy.targetX = (dx / dist) * enemy.speed * 8;
+                    enemy.targetY = (dy / dist) * enemy.speed * 8;
+                  }
+                } else {
+                  enemy.vx = (enemy.targetX || 0) * speedScale;
+                  enemy.vy = (enemy.targetY || 0) * speedScale;
+                }
+                break;
+              case 'orbit':
+                // Circles player and slowly drifts closer
+                const angle = enemy.stateTimer * 0.05;
+                const radius = 100 + Math.sin(enemy.stateTimer * 0.01) * 50;
+                const ox = p.x + p.width / 2 + Math.cos(angle) * radius;
+                const oy = p.y + p.height / 2 + Math.sin(angle) * radius;
+
+                const odx = ox - enemy.x;
+                const ody = oy - enemy.y;
+                const oDist = Math.hypot(odx, ody);
+                if (oDist > 0) {
+                  enemy.vx += (odx / oDist) * enemyAccel * 0.5;
+                  enemy.vy += (ody / oDist) * enemyAccel * 0.5;
                 }
                 break;
             }
           }
 
-          enemy.vx *= ENEMY_FRICTION;
-          enemy.vy *= ENEMY_FRICTION;
-          enemy.x += enemy.vx;
-          enemy.y += enemy.vy;
+          enemy.vx *= Math.pow(ENEMY_FRICTION, speedScale);
+          enemy.vy *= Math.pow(ENEMY_FRICTION, speedScale);
+          enemy.x += enemy.vx * speedScale;
+          enemy.y += enemy.vy * speedScale;
 
           // Collision with player
           const distToPlayer = Math.hypot(
@@ -619,7 +666,7 @@ function GameScreen({ frogName }: { frogName: string }) {
 
       // --- Dialog Typewriter ---
       if (s.dialog.charIndex < s.dialog.fullText.length) {
-        s.dialog.timer++;
+        s.dialog.timer += speedScale;
         if (s.dialog.timer > 2) {
           s.dialog.timer = 0;
           s.dialog.charIndex++;
@@ -920,8 +967,14 @@ function GameScreen({ frogName }: { frogName: string }) {
       }
     };
 
-    const loop = () => {
-      update();
+    const loop = (time: number) => {
+      const dt = (time - lastTimeRef.current) / 1000;
+      lastTimeRef.current = time;
+
+      // Cap dt to avoid huge jumps if tab was inactive
+      const cappedDt = Math.min(dt, 0.1);
+
+      update(cappedDt);
       draw();
       requestRef.current = requestAnimationFrame(loop);
     };
@@ -949,22 +1002,48 @@ function GameScreen({ frogName }: { frogName: string }) {
   );
 }
 
+const VictoryScreen: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        onComplete();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onComplete]);
+
+  return (
+    <div className="absolute inset-0 bg-black flex flex-col items-center justify-center text-center p-8 space-y-8 animate-in fade-in duration-1000">
+      <h1 className="text-6xl md:text-8xl font-black text-yellow-400 animate-bounce tracking-tighter">
+        УИУИУИУ!
+      </h1>
+      <p className="text-3xl md:text-5xl text-white font-bold tracking-widest leading-tight">
+        ПОЗДРАВЛЯЕМ С ДНЕМ РОЖДЕНИЯ!!!
+      </p>
+      <div className="flex space-x-6 text-5xl">
+        <span className="animate-pulse">🎂</span>
+        <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>🎈</span>
+        <span className="animate-pulse" style={{ animationDelay: '0.4s' }}>✨</span>
+        <span className="animate-bounce" style={{ animationDelay: '0.6s' }}>🎉</span>
+      </div>
+      <p className="text-xl text-gray-400 mt-12 animate-pulse uppercase tracking-[0.3em]">
+        Нажмите [ENTER] чтобы играть снова
+      </p>
+    </div>
+  );
+};
+
 export default function App() {
-  const [appState, setAppState] = useState<'LOADING' | 'NAMING' | 'PLAYING'>('LOADING');
+  const [screen, setScreen] = useState<'START' | 'LOADING' | 'NAMING' | 'GAME' | 'VICTORY'>('LOADING');
   const [frogName, setFrogName] = useState('FROG');
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center font-pixel text-white">
-      {appState === 'LOADING' && <LoadingScreen onComplete={() => setAppState('NAMING')} />}
-      {appState === 'NAMING' && (
-        <NamingScreen
-          onComplete={(name) => {
-            setFrogName(name);
-            setAppState('PLAYING');
-          }}
-        />
-      )}
-      {appState === 'PLAYING' && <GameScreen frogName={frogName} />}
+    <div className="relative w-full h-screen bg-neutral-950 flex items-center justify-center overflow-hidden font-mono text-white select-none">
+      {screen === 'LOADING' && <LoadingScreen onComplete={() => setScreen('NAMING')} />}
+      {screen === 'NAMING' && <NamingScreen onComplete={(name) => { setFrogName(name); setScreen('GAME'); }} />}
+      {screen === 'GAME' && <GameScreen frogName={frogName} onVictory={() => setScreen('VICTORY')} />}
+      {screen === 'VICTORY' && <VictoryScreen onComplete={() => setScreen('NAMING')} />}
     </div>
   );
 }

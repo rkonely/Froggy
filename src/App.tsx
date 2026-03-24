@@ -30,26 +30,83 @@ const FROG_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
 const frogImage = new Image();
 frogImage.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(FROG_SVG);
 
+const ENEMY_IMAGE_MAPPING: { [key: string]: string } = {
+  'Токсичные тимейты': 'Токсичные тимейты.png',
+  'Боль в спине': 'Боль в Спине.png',
+  'Депрессия': 'Депрессия.png',
+  'Голод': 'Голод.png',
+  'Плохая погода': 'Плохая погода.png',
+  'Душка': 'Душка.png',
+  'Бессонница': 'Бессониница.png',
+  'Прокрастинация': 'Прокрастинация.png',
+  'Тревога': 'Тревога.png',
+  'Забывчивость': 'Забывчивость.png',
+  'Шумные соседи': 'Шумные соседи.png',
+};
+
+// Encode space as %20 manually for robustness
+const ENEMY_ICON_PATH = 'froggy%20icon/';
+
+const enemyImages: { [key: string]: HTMLImageElement } = {};
+Object.keys(ENEMY_IMAGE_MAPPING).forEach(name => {
+  const img = new Image();
+  const fileName = ENEMY_IMAGE_MAPPING[name];
+  const meta = (import.meta as any);
+  const baseUrl = (meta && meta.env && meta.env.BASE_URL) || '/Froggy/';
+  img.src = `${baseUrl}${ENEMY_ICON_PATH}${encodeURIComponent(fileName)}`;
+
+  img.onload = () => {
+    console.log(`[Froggy] SUCCESS: Loaded image for "${name}" from ${img.src}`);
+  };
+  img.onerror = () => {
+    console.error(`[Froggy] ERROR: Failed to load image for "${name}" from ${img.src}`);
+    img.dataset.failed = 'true';
+  };
+  enemyImages[name] = img;
+});
+
+// --- Boss Battle Assets ---
+const BOSS_NAMES = [
+  'Плохая погода', 'Прокрастинация', 'Забывчивость', 'Шумные соседи',
+  'Боль в спине', 'Голод', 'Депрессия', 'Бессонница', 'Тревога'
+];
+
+const bossImages: { [key: string]: HTMLImageElement } = {};
+const mainFrogBossImage = new Image();
+
+BOSS_NAMES.forEach(name => {
+  const img = new Image();
+  const meta = (import.meta as any);
+  const baseUrl = (meta && meta.env && meta.env.BASE_URL) || '/Froggy/';
+  img.src = `${baseUrl}Froggy Boss/${encodeURIComponent(name + '.png')}`;
+  bossImages[name] = img;
+});
+
+const meta = (import.meta as any);
+const baseUrl = (meta && meta.env && meta.env.BASE_URL) || '/Froggy/';
+mainFrogBossImage.src = `${baseUrl}Froggy Boss/${encodeURIComponent('Main Frog.png')}`;
+
 type EnemyBehavior = 'chase' | 'stop-and-go' | 'erratic' | 'wander' | 'dash' | 'lunge' | 'orbit';
 type EnemyShape = 'square' | 'circle' | 'triangle' | 'pentagon' | 'star';
 
 interface EnemyType {
-  name: string; hp: number; speed: number; color: string; width: number; height: number;
-  behavior: EnemyBehavior; damage: number; shape: EnemyShape;
+  name: string; hp: number; speed: number; width: number; height: number;
+  behavior: EnemyBehavior; damage: number;
+  color?: string; shape?: EnemyShape;
 }
 
 const ENEMY_TYPES: EnemyType[] = [
-  { name: 'Токсичные тимейты', hp: 30, speed: 0.78, color: '#8b5cf6', width: 32, height: 32, behavior: 'chase', damage: 0.5, shape: 'circle' },
-  { name: 'Боль в спине', hp: 50, speed: 0.42, color: '#ef4444', width: 40, height: 40, behavior: 'lunge', damage: 1.0, shape: 'triangle' },
-  { name: 'Депрессия', hp: 80, speed: 0.24, color: '#3b82f6', width: 48, height: 48, behavior: 'chase', damage: 0.2, shape: 'square' },
-  { name: 'Голод', hp: 20, speed: 0.96, color: '#f59e0b', width: 24, height: 24, behavior: 'chase', damage: 0.8, shape: 'star' },
-  { name: 'Плохая погода', hp: 40, speed: 0.66, color: '#6b7280', width: 36, height: 36, behavior: 'chase', damage: 0.5, shape: 'pentagon' },
-  { name: 'Душка', hp: 60, speed: 0.54, color: '#10b981', width: 32, height: 32, behavior: 'chase', damage: 0.5, shape: 'circle' },
-  { name: 'Нехватка сна', hp: 25, speed: 1.14, color: '#6366f1', width: 28, height: 28, behavior: 'chase', damage: 0.5, shape: 'star' },
-  { name: 'Прокрастинация', hp: 45, speed: 1.8, color: '#d946ef', width: 34, height: 34, behavior: 'stop-and-go', damage: 0.5, shape: 'triangle' },
-  { name: 'Тревога', hp: 35, speed: 1.08, color: '#f43f5e', width: 30, height: 30, behavior: 'orbit', damage: 0.7, shape: 'pentagon' },
-  { name: 'Забывчивость', hp: 25, speed: 0.78, color: '#94a3b8', width: 28, height: 28, behavior: 'wander', damage: 0.3, shape: 'circle' },
-  { name: 'Шумные соседи', hp: 55, speed: 2.0, color: '#eab308', width: 38, height: 38, behavior: 'dash', damage: 1.5, shape: 'star' },
+  { name: 'Токсичные тимейты', hp: 30, speed: 0.78, width: 32, height: 32, behavior: 'chase', damage: 0.5 },
+  { name: 'Боль в спине', hp: 50, speed: 0.42, width: 40, height: 40, behavior: 'lunge', damage: 1.0 },
+  { name: 'Депрессия', hp: 80, speed: 0.24, width: 48, height: 48, behavior: 'chase', damage: 0.2 },
+  { name: 'Голод', hp: 20, speed: 0.98, width: 24, height: 24, behavior: 'chase', damage: 0.8 },
+  { name: 'Плохая погода', hp: 40, speed: 0.66, width: 36, height: 36, behavior: 'chase', damage: 0.5 },
+  { name: 'Душка', hp: 60, speed: 0.54, width: 32, height: 32, behavior: 'chase', damage: 0.5 },
+  { name: 'Бессонница', hp: 25, speed: 1.14, width: 28, height: 28, behavior: 'chase', damage: 0.5 },
+  { name: 'Прокрастинация', hp: 45, speed: 1.8, width: 34, height: 34, behavior: 'stop-and-go', damage: 0.5 },
+  { name: 'Тревога', hp: 35, speed: 1.08, width: 30, height: 30, behavior: 'orbit', damage: 0.7 },
+  { name: 'Забывчивость', hp: 25, speed: 0.78, width: 28, height: 28, behavior: 'wander', damage: 0.3 },
+  { name: 'Шумные соседи', hp: 55, speed: 2.0, width: 38, height: 38, behavior: 'dash', damage: 1.5 },
 ];
 
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
@@ -68,13 +125,13 @@ interface Enemy {
   hitTimer: number;
   dead: boolean;
   speed: number;
-  color: string;
   behavior: EnemyBehavior;
   damage: number;
-  shape: EnemyShape;
   stateTimer: number;
   targetX?: number;
   targetY?: number;
+  color?: string;
+  shape?: EnemyShape;
 }
 
 interface TypingState {
@@ -85,9 +142,26 @@ interface TypingState {
   isFinished: boolean;
 }
 
+interface BattleState {
+  bossName: string;
+  bossHp: number;
+  bossMaxHp: number;
+  playerHp: number;
+  playerMaxHp: number;
+  playerItems: { name: string; count: number }[];
+  turn: 'PLAYER' | 'BOSS';
+  message: string;
+  isFinished: boolean;
+  selectedAction: number; // For menu navigation
+  selectedItemIndex: number; // For item selection
+  isItemMenuOpen: boolean;
+  stateTimer: number;
+}
+
 interface GameState {
-  mode: 'ACTION' | 'TYPING';
+  mode: 'ACTION' | 'TYPING' | 'BOSS_SELECT' | 'BATTLE';
   typingState?: TypingState;
+  battleState?: BattleState;
   level: number;
   player: {
     x: number;
@@ -177,7 +251,7 @@ function NamingScreen({ onComplete }: { onComplete: (name: string) => void }) {
       setInputValue('');
     } else if (attempt === 2) {
       if (!inputValue.trim()) return;
-      setMessage('ОЙ, ЗАЧЕМ ТАК КРИЧАТЬ?! Раз ты такой грубый и повышаешь на меня буквы, я сам выберу тебе имя. Теперь ты... Артемяус.');
+      setMessage('ОЙ, ЗАЧЕМ ТАК КРИЧАТЬ?! Раз ты такой грубый и повышаешь на меня буквы, я сам выберу тебе имя. Теперь ты....');
       setAttempt(3);
     } else if (attempt === 3) {
       onComplete('Артемяус');
@@ -219,10 +293,11 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
   const requestRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
-  const getInitialState = (prevPlayer?: GameState['player'], level: number = 1): GameState => {
-    const mode = level === 1 ? 'ACTION' : 'TYPING';
-    let typingState: TypingState | undefined;
+  const getInitialState = (prevPlayer?: GameState['player'], level: number = 1, bossName?: string): GameState => {
+    let mode: GameState['mode'] = level === 1 ? 'ACTION' : (level === 2 || level === 5) ? 'TYPING' : level === 3 ? 'BOSS_SELECT' : 'BATTLE';
+    if (level === 6) mode = 'ACTION'; // Fallback
 
+    let typingState: TypingState | undefined;
     if (mode === 'TYPING') {
       const code = level === 2 ? "LSHS-5DDK-TCKCB-RWG6-QTB6" : "G539-MMWJ-DTJ4R-LHH9-KPBR";
       const fireSpeed = level === 2 ? 60 : 90; // pixels per second
@@ -235,11 +310,35 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
       };
     }
 
+    let battleState: BattleState | undefined;
+    if ((mode === 'BATTLE' && bossName) || mode === 'BOSS_SELECT') {
+      battleState = {
+        bossName: bossName || BOSS_NAMES[0],
+        bossHp: 200,
+        bossMaxHp: 200,
+        playerHp: prevPlayer ? prevPlayer.hp : 100,
+        playerMaxHp: 100,
+        playerItems: [
+          { name: 'Праздничный торт', count: 1 },
+          { name: 'Энергетик', count: 2 },
+          { name: 'Салат с Фасолью и сухариками', count: 1 }
+        ],
+        turn: 'PLAYER',
+        message: bossName ? `Дикий ${bossName} преграждает путь!` : "Выберите своего противника",
+        isFinished: false,
+        selectedAction: 0,
+        selectedItemIndex: 0,
+        isItemMenuOpen: false,
+        stateTimer: 0,
+      };
+    }
+
     return {
       mode,
       typingState,
+      battleState,
       level,
-      player: prevPlayer ? { ...prevPlayer, x: CANVAS_WIDTH / 2 - FROG_SIZE / 2, y: CANVAS_HEIGHT / 2 - FROG_SIZE / 2, hp: Math.min(100, prevPlayer.hp + 5) } : {
+      player: prevPlayer ? { ...prevPlayer, x: CANVAS_WIDTH / 2 - FROG_SIZE / 2, y: CANVAS_HEIGHT / 2 - FROG_SIZE / 2, hp: Math.min(100, prevPlayer.hp) } : {
         x: CANVAS_WIDTH / 2 - FROG_SIZE / 2,
         y: CANVAS_HEIGHT / 2 - FROG_SIZE / 2,
         vx: 0,
@@ -266,7 +365,7 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
       })),
       keys: {},
       dialog: {
-        fullText: `* Вы - ${frogName}, полная РЕШИМОСТИ Дон Лягушон.\n* Стрелочки/WASD - ходить.\n* Z или ПРОБЕЛ - атаковать языком.`,
+        fullText: `* Вы - ${frogName}, полная РЕШИМОСТИ Лягушка.\n* Стрелочки/WASD - ходить.\n* Z или ПРОБЕЛ - атаковать языком.`,
         currentText: "",
         charIndex: 0,
         timer: 0,
@@ -303,9 +402,10 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
         const ts = s.typingState!;
         if (ts.isFinished) {
           if (e.code === 'Enter' || e.code === 'Space') {
-            if (s.level === 3) {
-              s.isVictory = true;
-              setTimeout(onVictory, 2000); // Show birthday screen after a small delay
+            if (s.level === 2) {
+              state.current = getInitialState(s.player, 3);
+            } else if (s.level === 5) {
+              onVictory();
             } else {
               state.current = getInitialState(s.player, s.level + 1);
             }
@@ -324,7 +424,90 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
           }
         }
       }
+
+      if (s.mode === 'BOSS_SELECT') {
+        const index = s.battleState ? s.battleState.selectedAction : 0;
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+          const newIdx = (index - 1 + BOSS_NAMES.length) % BOSS_NAMES.length;
+          s.battleState = { ...s.battleState!, selectedAction: newIdx, bossName: BOSS_NAMES[newIdx] };
+        }
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          const newIdx = (index + 1) % BOSS_NAMES.length;
+          s.battleState = { ...s.battleState!, selectedAction: newIdx, bossName: BOSS_NAMES[newIdx] };
+        }
+        if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyZ') {
+          const selectedBoss = BOSS_NAMES[index];
+          state.current = getInitialState(s.player, 4, selectedBoss);
+        }
+      }
+
+      if (s.mode === 'BATTLE' && !s.isGameOver && !s.isVictory) {
+        const bs = s.battleState!;
+        if (bs.isFinished) {
+          if (e.code === 'Enter' || e.code === 'Space') {
+            if (bs.bossHp <= 0) {
+              s.isVictory = true;
+              setTimeout(onVictory, 1000);
+            } else {
+              s.isGameOver = true;
+            }
+          }
+          return;
+        }
+
+        if (bs.turn === 'PLAYER') {
+          if (bs.isItemMenuOpen) {
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') bs.selectedItemIndex = (bs.selectedItemIndex - 1 + bs.playerItems.length) % bs.playerItems.length;
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') bs.selectedItemIndex = (bs.selectedItemIndex + 1) % bs.playerItems.length;
+            if (e.code === 'Escape' || e.code === 'ArrowLeft') bs.isItemMenuOpen = false;
+            if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyZ') {
+              const item = bs.playerItems[bs.selectedItemIndex];
+              if (item && item.count > 0) {
+                item.count--;
+                let heal = 0;
+                if (item.name === 'Праздничный торт') heal = 100;
+                else if (item.name === 'Энергетик') heal = 20;
+                else if (item.name === 'Салат с Фасолью и сухариками') heal = 50;
+
+                bs.playerHp = Math.min(bs.playerMaxHp, bs.playerHp + heal);
+                bs.message = `Артемяус использовал ${item.name}! +${heal} HP.`;
+                bs.turn = 'BOSS';
+                bs.isItemMenuOpen = false;
+              } else {
+                bs.message = 'Эти предметы закончились!';
+              }
+            }
+            return;
+          }
+
+          if (e.code === 'ArrowUp' || e.code === 'KeyW') bs.selectedAction = (bs.selectedAction - 1 + 3) % 3;
+          if (e.code === 'ArrowDown' || e.code === 'KeyS') bs.selectedAction = (bs.selectedAction + 1) % 3;
+          if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyZ') {
+            // Process Player Action
+            if (bs.selectedAction === 0) { // Attack
+              const dmg = 20 + Math.floor(Math.random() * 15);
+              bs.bossHp -= dmg;
+              bs.message = `Артемяус использует ЯЗЫК-ХЛЫСТ! Нанесено ${dmg} урона.`;
+              bs.turn = 'BOSS';
+            } else if (bs.selectedAction === 1) { // Defense
+              bs.message = `Артемяус прячется в камышах! Защита повышена.`;
+              bs.turn = 'BOSS';
+            } else if (bs.selectedAction === 2) { // Items
+              bs.isItemMenuOpen = true;
+            }
+            if (bs.bossHp <= 0) {
+              bs.bossHp = 0;
+              bs.message = `${bs.bossName} повержен! Код для завершения: G539-MMWJ-DTJ4R-LHH9-KPBR. Нажмите ENTER.`;
+              bs.isFinished = true;
+            }
+          }
+        }
+        if (bs.isFinished && (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyZ')) {
+          state.current = getInitialState(s.player, 5);
+        }
+      }
     };
+
     const handleKeyUp = (e: KeyboardEvent) => {
       state.current.keys[e.code] = false;
     };
@@ -393,6 +576,31 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
         return;
       }
 
+      if (s.mode === 'BOSS_SELECT') {
+        const bs = s.battleState!;
+        bs.stateTimer += dt;
+        return;
+      }
+
+      if (s.mode === 'BATTLE') {
+        const bs = s.battleState!;
+        if (bs.turn === 'BOSS' && !bs.isFinished) {
+          bs.stateTimer += dt;
+          if (bs.stateTimer > 1.5) { // 1.5 second delay
+            const dmg = 15 + Math.floor(Math.random() * 10);
+            bs.playerHp = Math.max(0, bs.playerHp - dmg);
+            bs.message = `${bs.bossName} использует КОШМАРНУЮ АТАКУ! Нанесено ${dmg} урона.`;
+            bs.turn = 'PLAYER';
+            bs.stateTimer = 0;
+            if (bs.playerHp <= 0) {
+              bs.message = "Артемяус упал в обморок...";
+              bs.isFinished = true;
+            }
+          }
+        }
+        return;
+      }
+
       if (s.mode === 'ACTION') {
         // --- Player Physics & Movement ---
         let moved = false;
@@ -444,13 +652,13 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
               hp: type.hp, maxHp: type.hp,
               name: type.name,
               speed: type.speed,
-              color: type.color,
               behavior: type.behavior,
               damage: type.damage,
-              shape: type.shape,
               stateTimer: 0,
               hitTimer: 0,
-              dead: false
+              dead: false,
+              color: type.color,
+              shape: type.shape
             });
             s.spawnTimer = 180 + Math.random() * 240; // Next spawn in 3-7 seconds
           }
@@ -704,8 +912,6 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
         s.enemies.forEach(enemy => {
           if (enemy.dead) return;
 
-          ctx.fillStyle = enemy.hitTimer > 0 ? '#ffffff' : enemy.color;
-
           ctx.save();
           ctx.translate(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
 
@@ -714,51 +920,31 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
           const hw = w / 2;
           const hh = h / 2;
 
-          ctx.beginPath();
-          if (enemy.shape === 'square') {
-            ctx.rect(-hw, -hh, w, h);
-          } else if (enemy.shape === 'circle') {
+          const img = enemyImages[enemy.name];
+          if (img && img.complete && img.naturalWidth !== 0) {
+            ctx.drawImage(img, -hw, -hh, w, h);
+          } else if (img && img.dataset.failed === 'true') {
+            // Draw a red box or something to indicate missing asset if we really want to remove shapes
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-hw, -hh, w, h);
+            ctx.fillStyle = '#fff';
+            ctx.font = '8px monospace';
+            ctx.fillText('ERR', -hw + 2, 0);
+          } else {
+            // Still loading? Draw a placeholder circle
+            ctx.strokeStyle = '#666';
+            ctx.beginPath();
             ctx.arc(0, 0, hw, 0, Math.PI * 2);
-          } else if (enemy.shape === 'triangle') {
-            ctx.moveTo(0, -hh);
-            ctx.lineTo(hw, hh);
-            ctx.lineTo(-hw, hh);
-            ctx.closePath();
-          } else if (enemy.shape === 'pentagon') {
-            for (let i = 0; i < 5; i++) {
-              const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
-              const px = Math.cos(angle) * hw;
-              const py = Math.sin(angle) * hh;
-              if (i === 0) ctx.moveTo(px, py);
-              else ctx.lineTo(px, py);
-            }
-            ctx.closePath();
-          } else if (enemy.shape === 'star') {
-            for (let i = 0; i < 10; i++) {
-              const angle = (i * Math.PI) / 5 - Math.PI / 2;
-              const radius = i % 2 === 0 ? hw : hw / 2;
-              const px = Math.cos(angle) * radius;
-              const py = Math.sin(angle) * radius;
-              if (i === 0) ctx.moveTo(px, py);
-              else ctx.lineTo(px, py);
-            }
-            ctx.closePath();
+            ctx.stroke();
           }
-          ctx.fill();
 
-          ctx.fillStyle = '#000';
-          if (enemy.shape === 'square' || enemy.shape === 'pentagon') {
-            ctx.fillRect(-hw + 4, -hh + 4, 4, 4);
-            ctx.fillRect(hw - 8, -hh + 4, 4, 4);
-          } else if (enemy.shape === 'circle') {
-            ctx.fillRect(-hw + 6, -hh + 8, 4, 4);
-            ctx.fillRect(hw - 10, -hh + 8, 4, 4);
-          } else if (enemy.shape === 'triangle') {
-            ctx.fillRect(-hw + 10, 0, 4, 4);
-            ctx.fillRect(hw - 14, 0, 4, 4);
-          } else if (enemy.shape === 'star') {
-            ctx.fillRect(-hw + 8, -hh + 12, 4, 4);
-            ctx.fillRect(hw - 12, -hh + 12, 4, 4);
+          // Hit effect overlay for images
+          if (enemy.hitTimer > 0) {
+            ctx.globalCompositeOperation = 'source-atop';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.fillRect(-hw, -hh, w, h);
+            ctx.globalCompositeOperation = 'source-over';
           }
           ctx.restore();
 
@@ -904,6 +1090,90 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
           ctx.fillText('Нажмите ENTER чтобы продолжить', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 60);
           ctx.textAlign = 'left';
         }
+      } else if (s.mode === 'BOSS_SELECT') {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px "Press Start 2P", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('ВЫБЕРИ СВОЕГО БОССА', CANVAS_WIDTH / 2, 50);
+
+        const bs = s.battleState || { selectedAction: 0 };
+        BOSS_NAMES.forEach((name, i) => {
+          ctx.fillStyle = i === bs.selectedAction ? '#ff0' : '#444';
+          ctx.font = '16px "Press Start 2P", monospace';
+          ctx.fillText(name, CANVAS_WIDTH / 2, 110 + i * 35);
+          if (i === bs.selectedAction) {
+            ctx.fillText('>', CANVAS_WIDTH / 2 - 180, 110 + i * 35);
+          }
+        });
+      } else if (s.mode === 'BATTLE') {
+        const bs = s.battleState!;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        // Draw Boss
+        const bImg = bossImages[bs.bossName];
+        if (bImg && bImg.complete) {
+          ctx.drawImage(bImg, CANVAS_WIDTH * 0.7 - 80, 80, 160, 160);
+        }
+
+        // Draw Player
+        if (mainFrogBossImage.complete) {
+          ctx.drawImage(mainFrogBossImage, CANVAS_WIDTH * 0.25 - 60, 230, 120, 120);
+        }
+
+        // UI Box
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, CANVAS_HEIGHT - 140, CANVAS_WIDTH, 140);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(5, CANVAS_HEIGHT - 135, CANVAS_WIDTH - 10, 130);
+
+        // HP Bars
+        const drawHP = (x: number, y: number, name: string, hp: number, maxHp: number) => {
+          ctx.fillStyle = '#fff';
+          ctx.font = '10px "Press Start 2P", monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText(name, x, y);
+          ctx.fillStyle = '#333';
+          ctx.fillRect(x, y + 10, 150, 10);
+          ctx.fillStyle = '#0f0';
+          ctx.fillRect(x, y + 10, 150 * (hp / maxHp), 10);
+          ctx.fillStyle = '#fff';
+          ctx.fillText(`${Math.ceil(hp)}/${maxHp}`, x + 160, y + 18);
+        };
+
+        drawHP(30, 40, 'АРТЕМЯУС', bs.playerHp, bs.playerMaxHp);
+        drawHP(CANVAS_WIDTH - 250, 250, bs.bossName, bs.bossHp, bs.bossMaxHp);
+
+        // Message / Menu
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px "Press Start 2P"';
+        ctx.textAlign = 'left';
+        if (bs.turn === 'PLAYER' && !bs.isFinished) {
+          if (bs.isItemMenuOpen) {
+            ctx.fillText('Выберите предмет:', 30, CANVAS_HEIGHT - 110);
+            bs.playerItems.forEach((item, i) => {
+              ctx.fillStyle = i === bs.selectedItemIndex ? '#ff0' : '#fff';
+              ctx.fillText(`${i === bs.selectedItemIndex ? '>' : ' '} ${item.name} (${item.count})`, 30, CANVAS_HEIGHT - 85 + i * 20);
+            });
+          } else {
+            ctx.fillText('Выберите действие:', 30, CANVAS_HEIGHT - 100);
+            const actions = ['АТАКА', 'ЗАЩИТА', 'ПРЕДМЕТЫ'];
+            actions.forEach((a, i) => {
+              ctx.fillStyle = i === bs.selectedAction ? '#ff0' : '#fff';
+              ctx.fillText(`${i === bs.selectedAction ? '>' : ' '} ${a}`, 30, CANVAS_HEIGHT - 70 + i * 25);
+            });
+          }
+        } else {
+          const lines = bs.message.match(/.{1,35}(\s|$)/g) || [bs.message];
+          lines.forEach((line, i) => {
+            ctx.fillText(line.trim(), 30, CANVAS_HEIGHT - 90 + i * 25);
+          });
+        }
       }
 
       const uiY = CANVAS_HEIGHT - bottomUIHeight;
@@ -913,25 +1183,29 @@ function GameScreen({ frogName, onVictory }: { frogName: string; onVictory: () =
       ctx.fillText(`УРОВЕНЬ ИГРЫ: ${s.level}`, 10, 25);
 
       const displayName = frogName.toUpperCase().substring(0, 8);
-      ctx.fillText(`${displayName}   LV ${p.lv}`, 30, uiY + 30);
-      ctx.fillText(`HP`, 220, uiY + 30);
+      ctx.fillText(`${displayName}   LV ${p.lv}`, 20, uiY + 30);
+      ctx.fillText(`HP`, 280, uiY + 30);
 
       ctx.fillStyle = '#ff0000';
-      ctx.fillRect(260, uiY + 15, 100, 20);
+      ctx.fillRect(320, uiY + 15, 100, 20);
       ctx.fillStyle = '#ffff00';
-      ctx.fillRect(260, uiY + 15, 100 * (p.hp / p.maxHp), 20);
+      ctx.fillRect(320, uiY + 15, 100 * (p.hp / p.maxHp), 20);
       ctx.fillStyle = '#fff';
-      ctx.fillText(`${Math.ceil(p.hp)} / ${p.maxHp}`, 380, uiY + 30);
+      ctx.fillText(`${Math.ceil(p.hp)} / ${p.maxHp}`, 440, uiY + 30);
 
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 4;
       ctx.strokeRect(10, uiY + 50, CANVAS_WIDTH - 20, bottomUIHeight - 60);
 
       ctx.fillStyle = '#fff';
-      ctx.font = '14px "Press Start 2P", monospace';
+      ctx.font = '12px "Press Start 2P", monospace';
       const lines = s.dialog.currentText.split('\n');
       lines.forEach((line, i) => {
-        ctx.fillText(line, 30, uiY + 85 + (i * 25));
+        // Auto-wrap if line is too long
+        const wrappedLines = line.match(/.{1,45}(\s|$)/g) || [line];
+        wrappedLines.forEach((wl, j) => {
+          ctx.fillText(wl.trim(), 25, uiY + 80 + (i * 25 + j * 15));
+        });
       });
 
       // Overlays
